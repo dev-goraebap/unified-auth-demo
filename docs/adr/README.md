@@ -20,3 +20,4 @@
 | [0003](0003-postgresql-local-docker-demo-db.md) | PostgreSQL 로컬 도커 데모 DB | 수용 |
 | [0004](0004-identity-verification-provider-abstraction.md) | 본인인증 Provider 추상화 (Mock ↔ 실제 PASS 교체) | 수용 |
 | [0005](0005-verification-temporary-data-storage.md) | 인증 임시데이터(verification) 저장 전략 | 제안 |
+| [0006](0006-session-strategy-jwt-refresh-token.md) | 세션 전략 — JWT Access Token + Refresh Token | 수용 |

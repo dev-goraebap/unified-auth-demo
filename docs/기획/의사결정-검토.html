@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>통합인증 — 의사결정 검토</title>
+<style>
+  :root {
+    --bg:#f7f8fa; --card:#fff; --text:#1f2430; --muted:#5b6472; --line:#e3e7ee;
+    --accent:#3b6cff; --accent-soft:#eef2ff;
+    --green:#14894a; --green-soft:#e7f6ee;
+    --amber:#9a6b00; --amber-soft:#fff5e0;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#14171d; --card:#1c2029; --text:#e6e9ef; --muted:#9aa3b2; --line:#2c313c;
+    --accent:#6f93ff; --accent-soft:#22293c;
+    --green:#4cc98a; --green-soft:#16342a; --amber:#e0b25a; --amber-soft:#38300f;
+  }}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.7;font-size:16px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;}
+  .wrap{max-width:900px;margin:0 auto;padding:44px 24px 90px;}
+  header.hero{background:linear-gradient(135deg,var(--accent) 0%,#7a5cff 100%);color:#fff;
+    border-radius:18px;padding:40px 36px;margin-bottom:32px;}
+  header.hero .eyebrow{font-size:13px;letter-spacing:1px;text-transform:uppercase;opacity:.85;margin-bottom:10px;}
+  header.hero h1{margin:0 0 10px;font-size:29px;letter-spacing:-.5px;}
+  header.hero p{margin:0;opacity:.94;max-width:42em;}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:22px 0 10px;font-size:13.5px;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:7px;}
+  .chip{display:inline-block;font-size:12px;font-weight:700;padding:2px 10px;border-radius:999px;}
+  .chip.done{background:var(--green-soft);color:var(--green);}
+  .chip.todo{background:var(--amber-soft);color:var(--amber);}
+  .chip.new{background:var(--accent-soft);color:var(--accent);}
+  h2{font-size:20px;margin:34px 0 14px;letter-spacing:-.3px;display:flex;align-items:center;gap:10px;}
+
+  /* 확정 카드 */
+  .done-grid{display:grid;grid-template-columns:1fr;gap:12px;}
+  .dcard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--green);
+    border-radius:12px;padding:16px 20px;}
+  .dcard.high{border-left-color:var(--accent);}
+  .dcard .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+  .dcard h3{margin:0;font-size:16px;}
+  .dcard .desc{margin:8px 0 0;color:var(--muted);font-size:14.5px;}
+  .dcard .adr{font-family:var(--mono);font-size:12px;color:var(--muted);}
+  code{font-family:var(--mono);background:var(--accent-soft);color:var(--accent);
+    padding:1px 6px;border-radius:5px;font-size:92%;}
+
+  /* 검토 카드 */
+  .qcard{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:20px 22px;margin-bottom:14px;}
+  .qcard .qh{display:flex;align-items:center;gap:10px;margin-bottom:4px;}
+  .qcard .qnum{width:26px;height:26px;border-radius:8px;background:var(--amber-soft);color:var(--amber);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+  .qcard h3{margin:0;font-size:16.5px;}
+  .qcard .why{margin:2px 0 14px;color:var(--muted);font-size:14px;}
+  .opts{display:grid;gap:8px;}
+  .opt{border:1px solid var(--line);border-radius:10px;padding:11px 14px;font-size:14.5px;
+    display:flex;gap:10px;align-items:flex-start;background:var(--bg);}
+  .opt.rec{border-color:var(--green);background:var(--green-soft);}
+  .opt .mark{font-weight:700;color:var(--muted);flex-shrink:0;}
+  .opt.rec .mark{color:var(--green);}
+  .opt .txt{flex:1;}
+  .opt .rectag{font-size:11px;font-weight:700;color:var(--green);border:1px solid var(--green);
+    border-radius:6px;padding:1px 7px;white-space:nowrap;}
+  .note{background:var(--accent-soft);border:1px solid var(--accent);border-radius:10px;
+    padding:14px 16px;margin:26px 0 0;font-size:14.5px;}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:38px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">통합인증 데모 · 의사결정 검토</div>
+    <h1>결정된 것 &amp; 정해야 할 것</h1>
+    <p>지금까지의 논의를 검토용으로 정리했습니다. 위쪽은 확정된 결정, 아래쪽은 선생님이
+       골라주시면 되는 항목입니다. 각 항목에 권장안을 표시해 두었습니다.</p>
+  </header>
+
+  <div class="legend">
+    <span><span class="chip done">확정</span> 이미 결정됨 (ADR 반영)</span>
+    <span><span class="chip new">방금 확정</span> 이번에 정함</span>
+    <span><span class="chip todo">검토 필요</span> 선택 대기</span>
+  </div>
+
+  <h2>✅ 확정된 결정</h2>
+  <div class="done-grid">
+
+    <div class="dcard high">
+      <div class="top">
+        <h3>세션 전략 — JWT Access + Refresh Token <span class="chip new">방금 확정</span></h3>
+        <span class="adr">ADR-0006</span>
+      </div>
+      <p class="desc">짧은 수명의 Access Token(무상태 검증) + 서버 저장 Refresh Token(회전·폐기 지원).
+        프론트/백 분리 구조에 맞춤. → RFT 저장소가 필요해짐(아래 4번과 연결).</p>
+    </div>
+
+    <div class="dcard">
+      <div class="top"><h3>백엔드 구조 — 모듈러 모놀리스 + DDD-lite</h3><span class="adr">ADR-0001</span></div>
+      <p class="desc"><code>module/&lt;context&gt;</code> 아래 application(유스케이스)/domain(애그리거트)/infrastructure.
+        데모라 컨텍스트는 최소화.</p>
+    </div>
+
+    <div class="dcard">
+      <div class="top"><h3>데이터 접근 — 명령 JPA / 조회 jOOQ(동적)</h3><span class="adr">ADR-0002</span></div>
+      <p class="desc">명령은 JPA로 도메인 불변식 보호, 조회는 jOOQ 동적 타입(코드젠 없음).
+        MyBatis 미채택.</p>
+    </div>
+
+    <div class="dcard">
+      <div class="top"><h3>DB — PostgreSQL 로컬 도커</h3><span class="adr">ADR-0003</span></div>
+      <p class="desc">도커 postgres:16에 데모 전용 DB <code>unified_auth</code> 생성.
+        접속정보는 커밋 제외(<code>application-local.properties</code>).</p>
+    </div>
+
+    <div class="dcard">
+      <div class="top"><h3>본인인증 — Provider 추상화 (Mock ↔ 실제)</h3><span class="adr">ADR-0004</span></div>
+      <p class="desc">인터페이스 하나로 감싸 <code>auth.pass.provider=mock|real</code> 설정으로 교체.
+        Mock은 이름+생년월일+성별 해시로 DI를 결정적으로 생성.</p>
+    </div>
+
+  </div>
+
+  <h2>🟡 정해야 할 것 <span style="font-size:13px;color:var(--muted);font-weight:400;">— 골라주시면 반영합니다</span></h2>
+
+  <div class="qcard">
+    <div class="qh"><span class="qnum">1</span><h3>가입 정책</h3></div>
+    <p class="why">신원(DI)을 언제 확보하느냐. 흐름의 뼈대가 됩니다.</p>
+    <div class="opts">
+      <div class="opt rec"><span class="mark">A</span><span class="txt"><strong>본인인증 먼저</strong> → DI 확보 후 로그인 수단 등록</span><span class="rectag">권장</span></div>
+      <div class="opt"><span class="mark">B</span><span class="txt">소셜로 먼저 가입하고 나중에 PASS로 실명연결</span></div>
+    </div>
+  </div>
+
+  <div class="qcard">
+    <div class="qh"><span class="qnum">2</span><h3>기존 계정에 새 소셜 연결 시</h3></div>
+    <p class="why">로컬 회원이 소셜로 처음 들어와 PASS 통과 후 DI가 일치할 때. → 디자인할 화면이 달라집니다.</p>
+    <div class="opts">
+      <div class="opt rec"><span class="mark">A</span><span class="txt"><strong>확인 화면 표시</strong> — "○○○님 계정에 카카오를 연결할까요?"</span><span class="rectag">권장</span></div>
+      <div class="opt"><span class="mark">B</span><span class="txt">말없이 자동 연결 (본인인증으로 이미 안전하지만 사용자가 놀랄 수 있음)</span></div>
+    </div>
+  </div>
+
+  <div class="qcard">
+    <div class="qh"><span class="qnum">3</span><h3>Mock 본인인증 화면 방식</h3></div>
+    <p class="why">테스트용 본인인증을 어떻게 띄울지.</p>
+    <div class="opts">
+      <div class="opt rec"><span class="mark">A</span><span class="txt"><strong>백엔드 리다이렉트 방식</strong> — 실제 PASS처럼 별도 인증창 이동→콜백. 실전 코드 경로를 최대한 살림</span><span class="rectag">권장</span></div>
+      <div class="opt"><span class="mark">B</span><span class="txt">Angular 안의 간단한 입력 모달 (가장 빠르지만 리다이렉트 흐름 생략)</span></div>
+    </div>
+  </div>
+
+  <div class="qcard">
+    <div class="qh"><span class="qnum">4</span><h3>임시데이터 · Refresh Token 저장</h3></div>
+    <p class="why">OAuth state, PASS 결과 임시보관, 그리고 확정된 RFT(ADR-0006)를 어디에 둘지.</p>
+    <div class="opts">
+      <div class="opt rec"><span class="mark">A</span><span class="txt">임시데이터 = <strong><code>verification</code> 테이블 + TTL</strong>, RFT = <strong>별도 <code>refresh_token</code> 테이블</strong></span><span class="rectag">권장</span></div>
+      <div class="opt"><span class="mark">B</span><span class="txt">임시데이터는 인메모리(TTL 캐시), RFT만 테이블 (데모 한정 단순화)</span></div>
+    </div>
+  </div>
+
+  <div class="qcard">
+    <div class="qh"><span class="qnum">5</span><h3>스키마 관리 도구</h3></div>
+    <p class="why">jOOQ 동적 타입은 코드젠이 없어 스키마 소스 관리가 중요.</p>
+    <div class="opts">
+      <div class="opt rec"><span class="mark">A</span><span class="txt"><strong>초기엔 JPA <code>ddl-auto</code></strong>로 빠르게 → 스키마 안정 후 Flyway 도입</span><span class="rectag">권장</span></div>
+      <div class="opt"><span class="mark">B</span><span class="txt">처음부터 Flyway로 스키마 버전 관리</span></div>
+    </div>
+  </div>
+
+  <div class="qcard">
+    <div class="qh"><span class="qnum">6</span><h3>바운디드 컨텍스트 개수</h3></div>
+    <p class="why">인증 도메인을 몇 덩어리로 나눌지.</p>
+    <div class="opts">
+      <div class="opt rec"><span class="mark">A</span><span class="txt"><strong><code>identity</code> 하나</strong>로 시작 (데모 규모에 충분, 필요 시 분리)</span><span class="rectag">권장</span></div>
+      <div class="opt"><span class="mark">B</span><span class="txt"><code>identity</code> + <code>verification</code> 둘로 분리</span></div>
+    </div>
+  </div>
+
+  <div class="note">
+    <strong>참고</strong> — 위 6개는 모두 권장안(A)이 있습니다. "전부 권장안대로" 하셔도 되고,
+    바꾸고 싶은 항목만 알려주셔도 됩니다. 정해지면 ADR-0005를 <em>수용</em>으로 확정하고
+    스키마·API 설계로 넘어갑니다.
+  </div>
+
+  <footer>통합인증 데모 · 의사결정 검토 · 2026-07-19</footer>
+
+</div>
+</body>
+</html>
