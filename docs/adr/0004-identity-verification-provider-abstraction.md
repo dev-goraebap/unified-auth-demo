@@ -39,6 +39,30 @@ interface IdentityVerificationProvider {
 실제 DI 형식(64바이트 → Base64 약 88자)에 맞춰 Mock도 동일 길이로 생성한다.
 DB 컬럼·조회 로직이 실제 PASS와 동일하게 유지되어, 교체 시 도메인 로직 변경이 없다.
 
+### 본인인증 흐름 — 애그리게이터 패턴 채택
+
+실제 연동 대상은 **애그리게이터(Bootpay·PortOne) 패턴**을 기준으로 삼는다(KCP식 직접
+연동의 백엔드 콜백·복호화 방식은 채택하지 않는다). 이 패턴은 3단계다.
+
+```
+① 프론트 SDK가 인증창(팝업) 오픈 → 사용자 인증
+② 성공 시 식별자(reference)만 프론트에 반환 → 서버로 전달
+   (Bootpay=receipt_id / PortOne=identityVerificationId)
+③ 백엔드가 그 식별자로 REST 단건조회 → CI/DI·이름 등 획득
+```
+
+우리 `IdentityVerificationProvider.verify(reference)`는 이 3단계 중 ③을 담당한다.
+`reference`는 애그리게이터가 준 식별자다.
+
+- **Mock**: 프론트는 "가짜 인증창"에서 이름·생년월일·성별을 입력받아 서버에 임시저장하고
+  **가짜 식별자(reference)** 를 돌려준다. `MockVerificationProvider.verify(reference)`는
+  저장된 입력값을 꺼내 DI/CI를 합성해 반환한다.
+- **실제**: `BootpayProvider`/`PortOneProvider.verify(reference)`가 애그리게이터 REST를
+  호출해 결과를 받아 매핑한다.
+
+Bootpay ↔ PortOne은 같은 패턴이라, 실제 계약한 쪽으로 provider 구현만 교체하면 된다.
+프론트는 SDK 호출부만 바뀌고 백엔드 도메인 로직은 그대로다. (근거: `docs/기획/본인인증-방식비교.html`)
+
 ## 결과
 
 - **장점**: 계약 전에도 전체 인증 흐름을 개발·테스트할 수 있다. 실제 PASS 도입 시

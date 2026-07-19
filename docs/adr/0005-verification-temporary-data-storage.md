@@ -1,6 +1,6 @@
 # ADR-0005. 인증 임시데이터(verification) 저장 전략
 
-- 상태: **제안(Proposed)** — 결정 대기
+- 상태: 수용(Accepted)
 - 일자: 2026-07-19
 
 ## 맥락
@@ -66,15 +66,15 @@ verification(
 - 극단적 단순화를 원하면 (B) 인메모리도 데모 한정으로 수용 가능하다.
 
 세션 전략은 JWT+RFT로 확정([ADR-0006](0006-session-strategy-jwt-refresh-token.md))되어,
-**RFT 저장소는 필요**가 확정됐다. 남은 결정은 (1) 임시데이터(state·PASS 결과)를 위 A/B/C 중
-무엇으로 둘지, (2) RFT를 같은 `verification` 성격 저장소에 합칠지 별도 `refresh_token`
-테이블로 둘지다. 이 두 형태 선택이 남아 이 ADR은 **제안 상태로 유지**한다.
+**RFT 저장소는 필요**가 확정됐다. 최종 결정(2026-07-19):
 
-> 권장 조합: 임시데이터(state·PASS 결과)는 **(A) `verification` 테이블 + TTL**, RFT는
-> 회전·폐기 이력이 필요하므로 **별도 `refresh_token` 테이블**로 분리.
+- 임시데이터(OAuth state, 본인인증 결과 임시보관)는 **(A) `verification` 테이블 + TTL**.
+- RFT는 회전·폐기 이력이 필요하므로 **별도 `refresh_token` 테이블**로 분리한다.
+- 두 테이블 모두 `identity` 컨텍스트 안에 둔다([ADR-0001](0001-modular-monolith-context-packages.md) 확정).
 
-## 결과 (결정 시)
+## 결과
 
-- 결정되면 상태를 `수용`으로 바꾸고, 선택지(A/B/C)와 세션 테이블 포함 여부를 확정한다.
-- `verification` 컨텍스트를 별도 패키지로 둘지, `identity` 안에 둘지도 이때 함께 정한다
-  (ADR-0001의 미결정 사항과 연결).
+- **테이블 2종** — `verification`(임시데이터 + TTL), `refresh_token`(RFT 회전·폐기). 둘 다
+  `identity` 컨텍스트 소속.
+- `verification`은 만료 데이터 청소(정리 쿼리/배치)가 필요하다.
+- 실제 스키마 컬럼 정의는 구현 착수 시 확정한다.
