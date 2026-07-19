@@ -1,3 +1,7 @@
 .agents
 .claude
 skills-lock.json
+tmp
+
+# 로컬 전용 설정(DB 접속정보 등) — 커밋 금지 (ADR-0003)
+application-local.properties
