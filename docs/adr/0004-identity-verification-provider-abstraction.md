@@ -25,8 +25,11 @@ interface IdentityVerificationProvider {
 - `MockVerificationProvider`(데모용): 입력값에서 **결정적(deterministic)** 으로 DI/CI를
   생성한다.
   - `identityCore = 이름 + 생년월일 + 성별`
-  - `DI = Base64(SHA-256(SITE_SALT + identityCore))` — 약 88자 문자열
-  - `CI = Base64(SHA-256(COMMON_SALT + identityCore))`
+  - `DI = Base64(SHA-512(SITE_SALT + identityCore))` — 88자 문자열
+  - `CI = Base64(SHA-512(COMMON_SALT + identityCore))`
+  - 해시는 **SHA-512**를 쓴다. 실제 PASS DI 형식(64바이트 → Base64 88자)과 **동일 길이**를
+    맞추기 위함이다(SHA-256은 32바이트 → 44자라 길이가 다르다). Mock 전용 결정적 합성값이므로
+    알고리즘 선택의 보안 함의는 없고, "실제와 동일한 모양"이 유일한 기준이다.
   - 같은 사람 정보 → 항상 같은 DI(=재가입/기존계정 연결 흐름 재현). 정보가 다르면
     다른 DI(=신규 가입 흐름).
   - 휴대폰번호는 DI 재료에서 제외한다 — 실제 PASS에서 DI는 번호가 바뀌어도 불변이기 때문.

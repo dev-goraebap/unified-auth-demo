@@ -39,8 +39,7 @@ import java.util.Base64;
 public class MockVerificationProvider implements IdentityVerificationProvider {
 
     /** DI/CI를 실제 PASS 형식과 같은 길이(Base64 88자)로 맞추기 위해 SHA-512(64바이트)를 쓴다.
-     *  ADR-0004 본문은 SHA-256으로 기술했으나, 컬럼 호환(varchar(88))·"실제와 동일 길이"
-     *  목적을 우선해 88자를 생성하는 SHA-512를 채택한다. 어차피 Mock 전용 합성값이다. */
+     *  Mock 전용 결정적 합성값이라 알고리즘의 보안 함의는 없고 "실제와 동일 길이"가 기준이다(ADR-0004). */
     private static final String HASH_ALGORITHM = "SHA-512";
     private static final SecureRandom RANDOM = new SecureRandom();
 
