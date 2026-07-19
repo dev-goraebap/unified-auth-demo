@@ -1,11 +1,14 @@
 package com.example.demo.module.identity.application.auth.oauth;
 
 import com.example.demo.module.identity.domain.social.SocialProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +24,8 @@ import java.util.Map;
  */
 @Component
 public class SocialOAuthClient {
+
+    private static final Logger log = LoggerFactory.getLogger(SocialOAuthClient.class);
 
     private final OAuthProperties properties;
     private final RestClient rest = RestClient.create();
@@ -79,7 +84,11 @@ public class SocialOAuthClient {
             return accessToken.toString();
         } catch (SocialOAuthException e) {
             throw e;
+        } catch (RestClientResponseException e) {
+            log.warn("[OAuth] 토큰 교환 실패 status={} body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new SocialOAuthException("소셜 토큰 교환에 실패했습니다", e);
         } catch (RuntimeException e) {
+            log.warn("[OAuth] 토큰 교환 실패", e);
             throw new SocialOAuthException("소셜 토큰 교환에 실패했습니다", e);
         }
     }
@@ -97,7 +106,11 @@ public class SocialOAuthClient {
             return info;
         } catch (SocialOAuthException e) {
             throw e;
+        } catch (RestClientResponseException e) {
+            log.warn("[OAuth] 사용자정보 조회 실패 status={} body={}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw new SocialOAuthException("소셜 사용자 정보 조회에 실패했습니다", e);
         } catch (RuntimeException e) {
+            log.warn("[OAuth] 사용자정보 조회 실패", e);
             throw new SocialOAuthException("소셜 사용자 정보 조회에 실패했습니다", e);
         }
     }
