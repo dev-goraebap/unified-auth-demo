@@ -56,6 +56,12 @@ export class SignupPage {
   private readonly session = inject(SessionStore);
   private readonly router = inject(Router);
 
+  constructor() {
+    if (this.session.isAuthenticated()) {
+      this.router.navigate(['/accounts']);
+    }
+  }
+
   loginId = '';
   password = '';
   readonly reference = signal<string | null>(null);

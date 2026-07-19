@@ -70,6 +70,13 @@ export class LoginPage {
 
   readonly socials = SOCIALS;
 
+  constructor() {
+    // 부팅 시 refresh로 세션이 복원됐다면(새로고침 등) 로그인 화면 대신 계정으로.
+    if (this.session.isAuthenticated()) {
+      this.router.navigate(['/accounts']);
+    }
+  }
+
   loginId = '';
   password = '';
   readonly loading = signal(false);
