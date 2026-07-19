@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>본인인증 연동 방식 비교 — KCP · Bootpay · PortOne</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --text:#1f2430; --muted:#5b6472; --line:#e3e7ee;
+    --accent:#3b6cff; --accent-soft:#eef2ff;
+    --green:#14894a; --green-soft:#e7f6ee;
+    --amber:#9a6b00; --amber-soft:#fff5e0;
+    --red:#b3261e; --red-soft:#fdecea;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#14171d; --card:#1c2029; --text:#e6e9ef; --muted:#9aa3b2; --line:#2c313c;
+    --accent:#6f93ff; --accent-soft:#22293c;
+    --green:#4cc98a; --green-soft:#16342a; --amber:#e0b25a; --amber-soft:#38300f;
+    --red:#ff8a80; --red-soft:#3a1f1d;
+  }}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);line-height:1.7;font-size:16px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;}
+  .wrap{max-width:960px;margin:0 auto;padding:44px 24px 90px;}
+  header.hero{background:linear-gradient(135deg,var(--accent) 0%,#7a5cff 100%);color:#fff;
+    border-radius:18px;padding:40px 36px;margin-bottom:30px;}
+  header.hero .eyebrow{font-size:13px;letter-spacing:1px;text-transform:uppercase;opacity:.85;margin-bottom:10px;}
+  header.hero h1{margin:0 0 10px;font-size:28px;letter-spacing:-.5px;}
+  header.hero p{margin:0;opacity:.94;max-width:44em;}
+  h2{font-size:20px;margin:32px 0 14px;letter-spacing:-.3px;}
+  code{font-family:var(--mono);background:var(--accent-soft);color:var(--accent);padding:1px 6px;border-radius:5px;font-size:90%;}
+  .muted{color:var(--muted);}
+
+  /* pattern panels */
+  .patterns{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:720px){.patterns{grid-template-columns:1fr;}}
+  .pat{border:1px solid var(--line);border-radius:14px;padding:20px 22px;background:var(--card);}
+  .pat.agg{border-top:4px solid var(--green);}
+  .pat.direct{border-top:4px solid var(--amber);}
+  .pat h3{margin:0 0 4px;font-size:17px;}
+  .pat .tag{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;}
+  .tag.agg{background:var(--green-soft);color:var(--green);}
+  .tag.direct{background:var(--amber-soft);color:var(--amber);}
+  .pat .who{margin:6px 0 14px;font-size:13.5px;color:var(--muted);}
+  .flow{display:flex;flex-direction:column;gap:7px;}
+  .fstep{display:flex;gap:10px;align-items:flex-start;font-size:14px;}
+  .fstep .n{flex-shrink:0;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;
+    justify-content:center;font-size:12px;font-weight:700;background:var(--accent-soft);color:var(--accent);}
+  .fstep .who2{font-size:11px;font-weight:700;color:var(--muted);display:block;}
+  .biglabel{font-size:12px;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-block;margin-bottom:2px;}
+  .lbl-front{background:var(--accent-soft);color:var(--accent);}
+  .lbl-back{background:#eee7fb;color:#6a3ecc;}
+  @media(prefers-color-scheme:dark){.lbl-back{background:#241b3a;color:#b79bff;}}
+
+  /* table */
+  .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px;background:var(--card);}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top;}
+  thead th{background:var(--bg);font-size:12.5px;color:var(--muted);position:sticky;top:0;}
+  th.row{color:var(--muted);font-weight:600;white-space:nowrap;width:150px;}
+  tr:last-child td{border-bottom:none;}
+  .yes{color:var(--red);font-weight:700;}
+  .no{color:var(--green);font-weight:700;}
+  .col-kcp{background:var(--amber-soft);}
+  .same{background:var(--green-soft);}
+
+  .callout{border-radius:12px;padding:16px 18px;margin:18px 0;font-size:14.5px;border:1px solid;}
+  .callout .t{font-weight:700;display:block;margin-bottom:4px;}
+  .callout.good{background:var(--green-soft);border-color:var(--green);}
+  .callout.info{background:var(--accent-soft);border-color:var(--accent);}
+  .callout.warn{background:var(--amber-soft);border-color:var(--amber);}
+  ul{margin:8px 0;padding-left:20px;}
+  li{margin:5px 0;}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:36px;}
+  .src{font-size:12.5px;color:var(--muted);margin-top:8px;}
+  .src a{color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">통합인증 데모 · 본인인증 연동 방식</div>
+    <h1>KCP 직접 · Bootpay · PortOne 비교</h1>
+    <p>본인인증(휴대폰/PASS) 연동은 크게 <strong>두 가지 패턴</strong>으로 갈립니다.
+       어느 쪽으로 갈지에 따라 데모의 Mock 설계가 달라져, 세 서비스를 정리했습니다.</p>
+  </header>
+
+  <h2>큰 그림 — 두 가지 패턴</h2>
+  <div class="patterns">
+
+    <div class="pat agg">
+      <span class="tag agg">애그리게이터 패턴</span>
+      <h3 style="margin-top:8px;">Bootpay · PortOne</h3>
+      <p class="who">프론트 SDK가 인증창을 열고, 백엔드는 조회 한 번</p>
+      <div class="flow">
+        <div class="fstep"><span class="n">1</span><span><span class="biglabel lbl-front">프론트</span><br>SDK가 인증창(팝업) 오픈 → 사용자 인증</span></div>
+        <div class="fstep"><span class="n">2</span><span><span class="biglabel lbl-front">프론트</span><br>성공 시 <strong>식별자만</strong> 반환(<code>receipt_id</code>/<code>identityVerificationId</code>) → 서버로 전달</span></div>
+        <div class="fstep"><span class="n">3</span><span><span class="biglabel lbl-back">백엔드</span><br>식별자로 <strong>REST 단건조회</strong> → CI/DI·이름 등 획득</span></div>
+      </div>
+      <p class="muted" style="font-size:13px;margin-top:12px;">✅ 콜백/HTML 서빙 없음 · 복호화 없음 · 백엔드 가벼움</p>
+    </div>
+
+    <div class="pat direct">
+      <span class="tag direct">직접 연동 패턴</span>
+      <h3 style="margin-top:8px;">KCP</h3>
+      <p class="who">백엔드가 파라미터·콜백·복호화를 모두 처리</p>
+      <div class="flow">
+        <div class="fstep"><span class="n">1</span><span><span class="biglabel lbl-back">백엔드</span><br>거래등록 API → <code>call_url</code>·키 획득</span></div>
+        <div class="fstep"><span class="n">2</span><span><span class="biglabel lbl-front">프론트</span><br>그 URL로 form submit → 인증창 오픈 → 사용자 인증</span></div>
+        <div class="fstep"><span class="n">3</span><span><span class="biglabel lbl-back">백엔드</span><br><code>Ret_URL</code> <strong>콜백 수신</strong>(직접 서빙) → 결과조회 API</span></div>
+        <div class="fstep"><span class="n">4</span><span><span class="biglabel lbl-back">백엔드</span><br>암호화 데이터 <strong>복호화(ENC_KEY)</strong> → CI/DI 추출</span></div>
+      </div>
+      <p class="muted" style="font-size:13px;margin-top:12px;">⚠️ 콜백 엔드포인트 + 복호화 배선 필요 · 백엔드 무거움</p>
+    </div>
+
+  </div>
+
+  <div class="callout good" style="margin-top:20px;">
+    <span class="t">결론: Bootpay와 PortOne은 “동일 패턴”입니다</span>
+    둘 다 <strong>SDK가 인증창 오픈 → 식별자 반환 → 백엔드 REST 조회로 CI/DI 획득</strong> 3단계가 똑같습니다.
+    이름만 다를 뿐(<code>receipt_id</code> ↔ <code>identityVerificationId</code>), 구조는 갈아끼우기 쉬운 수준으로 유사합니다.
+  </div>
+
+  <h2>항목별 비교</h2>
+  <div class="tblwrap">
+  <table>
+    <thead>
+      <tr><th class="row">항목</th><th class="col-kcp">KCP 직접</th><th>Bootpay</th><th>PortOne</th></tr>
+    </thead>
+    <tbody>
+      <tr><th class="row">유형</th><td class="col-kcp">직접 연동</td><td class="same">애그리게이터</td><td class="same">애그리게이터</td></tr>
+      <tr><th class="row">인증창 오픈 주체</th><td class="col-kcp">백엔드 URL + 프론트 submit</td><td class="same">프론트 SDK</td><td class="same">프론트 SDK</td></tr>
+      <tr><th class="row">백엔드 콜백/HTML</th><td class="col-kcp"><span class="yes">필요</span></td><td class="same"><span class="no">불필요</span></td><td class="same"><span class="no">불필요</span></td></tr>
+      <tr><th class="row">결과 획득 방식</th><td class="col-kcp">콜백 + 복호화(ENC_KEY)</td><td class="same">식별자 REST 조회</td><td class="same">식별자 REST 조회</td></tr>
+      <tr><th class="row">식별자</th><td class="col-kcp">거래키</td><td class="same"><code>receipt_id</code></td><td class="same"><code>imp_uid</code>(V1) / <code>identityVerificationId</code>(V2)</td></tr>
+      <tr><th class="row">CI/DI 위치</th><td class="col-kcp">복호화 데이터</td><td class="same"><code>certificate()</code> 응답</td><td class="same"><code>unique_key/unique_in_site</code>(V1)<br><code>verifiedCustomer.ci/.di</code>(V2)</td></tr>
+      <tr><th class="row">PASS 경유 대행사</th><td class="col-kcp">KCP 직접</td><td class="same">다날(PASS)</td><td class="same">다날 · KG · NICE · KCP 등 채널 선택</td></tr>
+      <tr><th class="row">계약</th><td class="col-kcp">KCP 직접 심사</td><td class="same">부트페이 가입</td><td class="same">포트원 가입 + 대행사 채널 등록</td></tr>
+      <tr><th class="row">백엔드 부담</th><td class="col-kcp"><span class="yes">무거움</span></td><td class="same"><span class="no">가벼움</span></td><td class="same"><span class="no">가벼움</span></td></tr>
+      <tr><th class="row">우리 <code>verify(ref)</code> 추상화</th><td class="col-kcp">콜백 배선 추가 필요</td><td class="same">1:1로 맞음</td><td class="same">1:1로 맞음</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>데모 관점에서의 시사점</h2>
+  <div class="callout info">
+    <span class="t">Mock은 “애그리게이터 패턴” 모양으로 만들면 Bootpay든 PortOne이든 전환 가능</span>
+    우리 백엔드 추상화 <code>IdentityVerificationProvider.verify(reference)</code>에서
+    <code>reference</code> = 식별자(receipt_id / identityVerificationId) 로 두면, Mock은
+    <strong>“가짜 식별자 → 백엔드가 저장해둔 입력값으로 DI 합성”</strong> 한 줄이면 됩니다.
+    실제 전환 시 프론트는 SDK 호출만 바꾸고, 백엔드는 provider 구현만 교체합니다.
+  </div>
+
+  <div class="callout warn">
+    <span class="t">유의사항</span>
+    <ul>
+      <li><strong>DI 제공 여부는 대행사별로 다름</strong> — 일부 채널(예: KG이니시스 통합인증)은 DI를 안 줄 수 있음. 실제 연동 시 채널 확인 필요.</li>
+      <li>Bootpay <code>certificate</code> 응답의 정확한 필드 스키마, PortOne V2 <code>phoneNumber/operator</code> 필드는 문서 로그인 게이트로 <strong>일부 확인 불가</strong> — 계정으로 문서 확인 필요.</li>
+      <li>어느 경우든 실제 CI/DI를 받으려면 대행사 계약/이용료가 발생 (데모는 Mock으로 대체).</li>
+    </ul>
+  </div>
+
+  <h2>정리</h2>
+  <ul>
+    <li><strong>Bootpay ≈ PortOne</strong> — 같은 애그리게이터 패턴. 둘 중 무엇을 골라도 데모 구조·Mock은 동일.</li>
+    <li><strong>KCP</strong> — 직접 연동. 백엔드에 콜백·복호화 배선이 추가로 필요(무거움).</li>
+    <li>데모 권장: <strong>애그리게이터 패턴으로 Mock 설계</strong> → 나중에 Bootpay/PortOne 중 실제 계약한 쪽으로 provider만 교체.</li>
+  </ul>
+
+  <p class="src">
+    출처:
+    <a href="https://developers.portone.io/opi/ko/extra/identity-verification/readme-v2">PortOne 본인인증 V2</a> ·
+    <a href="https://help.portone.io/content/identity-verification-value">PortOne 인증정보(CI/DI)</a> ·
+    <a href="https://developers.bootpay.ai/docs/next/auth">Bootpay 본인인증</a> ·
+    <a href="https://developer.kcp.co.kr/guide/cert">KCP 본인확인 가이드</a>
+  </p>
+
+  <footer>통합인증 데모 · 본인인증 방식 비교 · 2026-07-19</footer>
+
+</div>
+</body>
+</html>
