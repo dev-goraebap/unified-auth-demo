@@ -2,20 +2,18 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthApi } from '../../shared/api/auth-api';
-import { SocialProvider } from '../../shared/api/dto';
+import { AuthResponse, SocialProvider } from '../../shared/api/dto';
 import { SessionStore } from '../../shared/session/session-store';
-import { MockVerificationDialog, VerifiedResult } from '../../features/mock-verification/mock-verification-dialog';
 
 const SOCIALS: { provider: SocialProvider; label: string; classes: string }[] = [
   { provider: 'KAKAO', label: '카카오로 로그인', classes: 'bg-yellow-300 text-yellow-950 hover:bg-yellow-400' },
-  { provider: 'NAVER', label: '네이버로 로그인', classes: 'bg-green-600 text-white hover:bg-green-700' },
   { provider: 'GOOGLE', label: 'Google로 로그인', classes: 'border border-gray-300 bg-white text-gray-700 hover:bg-gray-50' },
 ];
 
-/** 로그인 — 로컬(ID/PW) + 소셜. 소셜이 미연결이면 본인인증 후 연결/가입한다. */
+/** 로그인 — 로컬(ID/PW) + 소셜(실제 OAuth: 카카오·구글). */
 @Component({
   selector: 'app-login-page',
-  imports: [FormsModule, RouterLink, MockVerificationDialog],
+  imports: [FormsModule, RouterLink],
   template: `
     <div class="mx-auto max-w-sm">
       <h1 class="mb-1 text-2xl font-bold text-gray-900">로그인</h1>
@@ -55,12 +53,6 @@ const SOCIALS: { provider: SocialProvider; label: string; classes: string }[] = 
         <a routerLink="/signup" class="font-semibold text-indigo-600 hover:underline">회원가입</a>
       </p>
     </div>
-
-    @if (pendingProvider()) {
-      <app-mock-verification-dialog
-        (verified)="onVerified($event)"
-        (cancelled)="pendingProvider.set(null)" />
-    }
   `,
 })
 export class LoginPage {
@@ -81,12 +73,6 @@ export class LoginPage {
   password = '';
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly pendingProvider = signal<SocialProvider | null>(null);
-
-  private providerUserId(provider: SocialProvider): string {
-    // 데모: OAuth 대신 provider별 고정 식별자. 실제로는 OAuth 콜백이 채운다.
-    return `${provider.toLowerCase()}-demo`;
-  }
 
   loginLocal(): void {
     if (!this.loginId || !this.password) {
@@ -104,44 +90,22 @@ export class LoginPage {
     });
   }
 
+  /** 실제 제공자 인가 페이지로 리다이렉트. 이후 처리는 /auth/callback/:provider. */
   loginSocial(provider: SocialProvider): void {
     this.loading.set(true);
     this.error.set(null);
-    this.authApi.socialLogin(provider, this.providerUserId(provider)).subscribe({
+    this.authApi.socialAuthorizeUrl(provider).subscribe({
       next: (res) => {
-        if (res.status === 'AUTHENTICATED' && res.user) {
-          this.onAuthenticated(res.user);
-        } else {
-          // 미연결 → 본인인증 후 연결/가입.
-          this.loading.set(false);
-          this.pendingProvider.set(provider);
-        }
+        window.location.href = res.authorizeUrl;
       },
       error: () => {
         this.loading.set(false);
-        this.error.set('소셜 로그인에 실패했습니다.');
+        this.error.set('소셜 로그인을 시작하지 못했습니다.');
       },
     });
   }
 
-  onVerified(result: VerifiedResult): void {
-    const provider = this.pendingProvider();
-    if (!provider) return;
-    this.loading.set(true);
-    this.authApi.socialLink(provider, this.providerUserId(provider), result.reference).subscribe({
-      next: (res) => {
-        this.pendingProvider.set(null);
-        this.onAuthenticated(res.user);
-      },
-      error: () => {
-        this.loading.set(false);
-        this.pendingProvider.set(null);
-        this.error.set('소셜 계정 연결에 실패했습니다.');
-      },
-    });
-  }
-
-  private onAuthenticated(auth: { userId: string; name: string; accessToken: string; accessTokenExpiresAt: string }): void {
+  private onAuthenticated(auth: AuthResponse): void {
     this.session.set(auth);
     this.loading.set(false);
     this.router.navigate(['/accounts']);

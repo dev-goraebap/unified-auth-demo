@@ -29,14 +29,15 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface SocialLoginResponse {
-  status: 'AUTHENTICATED' | 'VERIFICATION_REQUIRED';
-  user: AuthResponse | null;
+export interface AuthorizeResponse {
+  authorizeUrl: string;
 }
 
-export interface SocialLinkResponse {
-  user: AuthResponse;
-  outcome: 'CREATED' | 'MERGED' | 'ALREADY_LINKED';
+/** 소셜 OAuth 콜백 결과. AUTHENTICATED면 user(로그인 완료), 아니면 ticket(연결 필요). */
+export interface SocialCallbackResponse {
+  status: 'AUTHENTICATED' | 'VERIFICATION_REQUIRED';
+  user: AuthResponse | null;
+  ticket: string | null;
 }
 
 export interface AccountsResponse {

@@ -4,10 +4,10 @@ import { Observable } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
 import {
   AuthResponse,
+  AuthorizeResponse,
   LoginRequest,
   SignupRequest,
-  SocialLinkResponse,
-  SocialLoginResponse,
+  SocialCallbackResponse,
   SocialProvider,
 } from './dto';
 
@@ -33,11 +33,23 @@ export class AuthApi {
     return this.http.post<void>(`${this.base}/logout`, {});
   }
 
-  socialLogin(provider: SocialProvider, providerUserId: string): Observable<SocialLoginResponse> {
-    return this.http.post<SocialLoginResponse>(`${this.base}/social/login`, { provider, providerUserId });
+  /** 소셜 인가 URL 요청(브라우저를 여기로 보낸다). */
+  socialAuthorizeUrl(provider: SocialProvider): Observable<AuthorizeResponse> {
+    return this.http.get<AuthorizeResponse>(`${this.base}/social/${provider.toLowerCase()}/authorize`);
   }
 
-  socialLink(provider: SocialProvider, providerUserId: string, reference: string): Observable<SocialLinkResponse> {
-    return this.http.post<SocialLinkResponse>(`${this.base}/social/link`, { provider, providerUserId, reference });
+  /** 콜백 code를 백엔드로 전달 → 로그인 또는 연결 티켓. */
+  socialCallback(provider: SocialProvider, code: string, state: string): Observable<SocialCallbackResponse> {
+    return this.http.post<SocialCallbackResponse>(`${this.base}/social/callback`, { provider, code, state });
+  }
+
+  /** (비로그인) PASS 완료 후 티켓으로 소셜 연결/가입. */
+  socialComplete(ticket: string, reference: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.base}/social/complete`, { ticket, reference });
+  }
+
+  /** (로그인 상태) 티켓의 소셜을 현재 계정에 연결. */
+  socialLink(ticket: string): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.base}/social/link`, { ticket });
   }
 }

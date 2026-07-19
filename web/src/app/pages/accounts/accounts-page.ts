@@ -5,18 +5,16 @@ import { AccountApi } from '../../shared/api/account-api';
 import { AuthApi } from '../../shared/api/auth-api';
 import { AccountsResponse, SocialProvider } from '../../shared/api/dto';
 import { SessionStore } from '../../shared/session/session-store';
-import { MockVerificationDialog, VerifiedResult } from '../../features/mock-verification/mock-verification-dialog';
 
 const ALL_SOCIALS: { provider: SocialProvider; label: string }[] = [
   { provider: 'KAKAO', label: '카카오' },
-  { provider: 'NAVER', label: '네이버' },
   { provider: 'GOOGLE', label: 'Google' },
 ];
 
-/** 내 계정 — DI 앵커로 묶인 로컬·소셜 계정을 한눈에 보고, 소셜을 추가 연결한다. */
+/** 내 계정 — DI 앵커로 묶인 로컬·소셜 계정을 한눈에 보고, 소셜을 추가 연결한다(실제 OAuth). */
 @Component({
   selector: 'app-accounts-page',
-  imports: [MockVerificationDialog],
+  imports: [],
   template: `
     <div class="mx-auto max-w-md">
       <div class="mb-6 flex items-center justify-between">
@@ -53,7 +51,7 @@ const ALL_SOCIALS: { provider: SocialProvider; label: string }[] = [
                 @if (isLinked(acc, s.provider)) {
                   <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">연결됨</span>
                 } @else {
-                  <button type="button" (click)="startLink(s.provider)" [disabled]="loading()"
+                  <button type="button" (click)="linkSocial(s.provider)" [disabled]="loading()"
                           class="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
                     연결
                   </button>
@@ -66,12 +64,6 @@ const ALL_SOCIALS: { provider: SocialProvider; label: string }[] = [
         <p class="text-sm text-gray-400">불러오는 중…</p>
       }
     </div>
-
-    @if (pendingProvider()) {
-      <app-mock-verification-dialog
-        (verified)="onVerified($event)"
-        (cancelled)="pendingProvider.set(null)" />
-    }
   `,
 })
 export class AccountsPage {
@@ -84,7 +76,6 @@ export class AccountsPage {
   readonly accounts = signal<AccountsResponse | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
-  readonly pendingProvider = signal<SocialProvider | null>(null);
 
   constructor() {
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
@@ -103,29 +94,17 @@ export class AccountsPage {
     return acc.socials.some((s) => s.provider === provider);
   }
 
-  private providerUserId(provider: SocialProvider): string {
-    return `${provider.toLowerCase()}-demo`;
-  }
-
-  startLink(provider: SocialProvider): void {
-    this.pendingProvider.set(provider);
-  }
-
-  onVerified(result: VerifiedResult): void {
-    const provider = this.pendingProvider();
-    if (!provider) return;
+  /** 실제 제공자 인가 페이지로 리다이렉트. 콜백에서 현재 계정에 연결된다(/auth/callback). */
+  linkSocial(provider: SocialProvider): void {
     this.loading.set(true);
     this.error.set(null);
-    this.authApi.socialLink(provider, this.providerUserId(provider), result.reference).subscribe({
-      next: () => {
-        this.pendingProvider.set(null);
-        this.loading.set(false);
-        this.load();
+    this.authApi.socialAuthorizeUrl(provider).subscribe({
+      next: (res) => {
+        window.location.href = res.authorizeUrl;
       },
-      error: (err) => {
-        this.pendingProvider.set(null);
+      error: () => {
         this.loading.set(false);
-        this.error.set(err?.error?.message ?? '소셜 계정 연결에 실패했습니다.');
+        this.error.set('소셜 연결을 시작하지 못했습니다.');
       },
     });
   }

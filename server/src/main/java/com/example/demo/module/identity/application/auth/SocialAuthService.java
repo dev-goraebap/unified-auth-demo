@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * 소셜(카카오·네이버·구글) 로그인/연결. 데모에서는 OAuth 대신 (provider, providerUserId)를
@@ -76,5 +77,27 @@ public class SocialAuthService {
         socialAccountRepository.save(SocialAccount.link(user, provider, providerUserId));
         return new SocialLinkResult(new AuthenticatedUser(user.getId(), user.getName()),
                 userCreated ? SocialLinkResult.Outcome.CREATED : SocialLinkResult.Outcome.MERGED);
+    }
+
+    /**
+     * 이미 로그인한 사용자가 소셜 계정을 자기 계정에 연결한다(PASS 불필요 — 이미 신원 확립됨).
+     * 같은 소셜이 이미 본인에게 연결됐으면 멱등, 남에게 연결됐으면 거부한다.
+     */
+    @Transactional
+    public AuthenticatedUser linkToUser(UUID userId, SocialProvider provider, String providerUserId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+
+        Optional<SocialAccount> existing =
+                socialAccountRepository.findByProviderAndProviderUserId(provider, providerUserId);
+        if (existing.isPresent()) {
+            if (!existing.get().getUser().getId().equals(userId)) {
+                throw new SocialAccountConflictException("이미 다른 계정에 연결된 소셜 계정입니다.");
+            }
+            return new AuthenticatedUser(user.getId(), user.getName()); // 이미 연결됨(멱등)
+        }
+
+        socialAccountRepository.save(SocialAccount.link(user, provider, providerUserId));
+        return new AuthenticatedUser(user.getId(), user.getName());
     }
 }

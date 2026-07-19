@@ -1,5 +1,6 @@
 package com.example.demo.module.identity.application.auth;
 
+import com.example.demo.module.identity.application.auth.oauth.SocialOAuthException;
 import com.example.demo.module.identity.application.auth.token.InvalidAccessTokenException;
 import com.example.demo.module.identity.application.auth.token.InvalidRefreshTokenException;
 import com.example.demo.module.identity.application.verification.VerificationNotFoundException;
@@ -50,6 +51,12 @@ public class AuthExceptionHandler {
     @ExceptionHandler(SocialAccountConflictException.class)
     public ResponseEntity<ErrorResponse> handleSocialConflict(SocialAccountConflictException e) {
         return build(HttpStatus.CONFLICT, "SOCIAL_ACCOUNT_CONFLICT", e.getMessage());
+    }
+
+    /** 소셜 OAuth 처리 실패 → 400 */
+    @ExceptionHandler(SocialOAuthException.class)
+    public ResponseEntity<ErrorResponse> handleSocialOAuth(SocialOAuthException e) {
+        return build(HttpStatus.BAD_REQUEST, "SOCIAL_OAUTH_FAILED", e.getMessage());
     }
 
     /** 본인인증 결과 없음/만료 → 404 */
