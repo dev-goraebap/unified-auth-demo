@@ -1,6 +1,6 @@
 package com.example.demo.module.identity.application.auth;
 
-import com.example.demo.module.identity.application.auth.token.InvalidAccessTokenException;
+import com.example.demo.module.identity.application.auth.token.BearerTokenAuthenticator;
 import com.example.demo.module.identity.application.auth.token.InvalidRefreshTokenException;
 import com.example.demo.module.identity.application.auth.token.TokenService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,13 +30,16 @@ public class AuthController {
     private final LoginService loginService;
     private final TokenService tokenService;
     private final AuthTokenResponder responder;
+    private final BearerTokenAuthenticator authenticator;
 
     public AuthController(SignupService signupService, LoginService loginService,
-                          TokenService tokenService, AuthTokenResponder responder) {
+                          TokenService tokenService, AuthTokenResponder responder,
+                          BearerTokenAuthenticator authenticator) {
         this.signupService = signupService;
         this.loginService = loginService;
         this.tokenService = tokenService;
         this.responder = responder;
+        this.authenticator = authenticator;
     }
 
     /** 로컬 가입(PASS 우선). reference는 본인인증 완료 후 프론트가 전달한 식별자. */
@@ -74,15 +77,8 @@ public class AuthController {
     /** 현재 사용자 — Access Token 검증 데모(Authorization: Bearer). */
     @GetMapping("/me")
     public MeResponse me(@RequestHeader(name = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        UUID userId = tokenService.authenticate(bearerToken(authorization), Instant.now());
+        UUID userId = authenticator.authenticate(authorization, Instant.now());
         return new MeResponse(userId);
-    }
-
-    private static String bearerToken(String authorizationHeader) {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new InvalidAccessTokenException("Authorization: Bearer 토큰이 필요합니다");
-        }
-        return authorizationHeader.substring("Bearer ".length());
     }
 
     /**
