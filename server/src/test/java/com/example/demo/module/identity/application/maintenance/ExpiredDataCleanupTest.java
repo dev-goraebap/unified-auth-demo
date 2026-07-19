@@ -43,8 +43,8 @@ class ExpiredDataCleanupTest {
                 "di-cleanup-test", null, "청소대상", LocalDate.of(1990, 1, 1), Gender.M, null));
         String expiredHash = "a".repeat(64);
         String freshHash = "b".repeat(64);
-        refreshTokenRepository.save(RefreshToken.issue(user, expiredHash, now.minusSeconds(3600)));
-        refreshTokenRepository.save(RefreshToken.issue(user, freshHash, now.plusSeconds(3600)));
+        refreshTokenRepository.save(RefreshToken.issue(user, expiredHash, now.minusSeconds(3600), true));
+        refreshTokenRepository.save(RefreshToken.issue(user, freshHash, now.plusSeconds(3600), true));
 
         long deleted = cleanup.purgeExpiredAt(now);
 

@@ -46,8 +46,9 @@ class AccountQueryTest {
     @Test
     void 내_계정은_로컬과_소셜을_통합해서_보여준다() throws Exception {
         AuthenticatedUser user = signupService.signupLocal(sameReference(), "acctuser", "password123");
-        socialAuthService.linkOrRegister(SocialProvider.KAKAO, "kakao-1", sameReference());
-        socialAuthService.linkOrRegister(SocialProvider.GOOGLE, "google-1", sameReference());
+        // 같은 DI(기존 회원)라 확인 후 소셜이 그 계정에 연결된다.
+        socialAuthService.confirmLink(SocialProvider.KAKAO, "kakao-1", sameReference());
+        socialAuthService.confirmLink(SocialProvider.GOOGLE, "google-1", sameReference());
 
         // jOOQ(원시 SQL)가 같은 트랜잭션의 JPA 변경을 보도록 flush.
         userRepository.flush();

@@ -44,9 +44,12 @@ class JwtProviderTest {
         Instant now = Instant.parse("2026-07-19T00:00:00Z");
         String token = jwtProvider.issue(UUID.randomUUID(), now).token();
 
-        // 서명 마지막 글자를 바꿔 위조.
-        char last = token.charAt(token.length() - 1);
-        String tampered = token.substring(0, token.length() - 1) + (last == 'A' ? 'B' : 'A');
+        // 서명부(마지막 '.' 이후) 첫 글자를 바꿔 위조한다.
+        // 마지막 글자는 base64url 패딩 비트라 A↔B로 바꿔도 디코딩 시 무시돼 실제 바이트가 안 바뀔 수 있다
+        // (결정적이지 않음). 첫 글자는 6비트 전부가 유효해 바꾸면 서명 바이트가 반드시 달라진다.
+        int sigStart = token.lastIndexOf('.') + 1;
+        char first = token.charAt(sigStart);
+        String tampered = token.substring(0, sigStart) + (first == 'A' ? 'B' : 'A') + token.substring(sigStart + 1);
 
         assertThatThrownBy(() -> jwtProvider.parseUserId(tampered, now.plusSeconds(60)))
                 .isInstanceOf(InvalidAccessTokenException.class);

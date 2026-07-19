@@ -25,9 +25,11 @@ public class AuthTokenResponder {
         this.properties = properties;
     }
 
-    /** 발급된 토큰을 응답에 싣는다: RFT는 쿠키로, 나머지는 {@link AuthResponse} 바디로. */
+    /** 발급된 토큰을 응답에 싣는다: RFT는 쿠키로, 나머지는 {@link AuthResponse} 바디로.
+     *  remember=true면 영속 쿠키(Max-Age), false면 세션 쿠키(Max-Age 미출력)로 굽는다. */
     public AuthResponse write(IssuedTokens tokens, HttpServletResponse response) {
-        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie(tokens.refreshToken()).toString());
+        response.addHeader(HttpHeaders.SET_COOKIE,
+                refreshCookie(tokens.refreshToken(), tokens.remember()).toString());
         return new AuthResponse(
                 tokens.user().userId(), tokens.user().name(),
                 tokens.accessToken(), tokens.accessTokenExpiresAt());
@@ -50,8 +52,10 @@ public class AuthTokenResponder {
                 .findFirst();
     }
 
-    private ResponseCookie refreshCookie(String rawToken) {
-        return baseCookie(rawToken).maxAge(properties.refreshTtl()).build();
+    private ResponseCookie refreshCookie(String rawToken, boolean remember) {
+        ResponseCookie.ResponseCookieBuilder base = baseCookie(rawToken);
+        // remember=true → Max-Age 부여(영속). false → maxAge 미설정(기본 -1) → Max-Age 미출력 = 세션 쿠키.
+        return remember ? base.maxAge(properties.refreshTtl()).build() : base.build();
     }
 
     private ResponseCookie expiredRefreshCookie() {

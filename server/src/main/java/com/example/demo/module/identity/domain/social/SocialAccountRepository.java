@@ -12,4 +12,7 @@ public interface SocialAccountRepository extends JpaRepository<SocialAccount, UU
     Optional<SocialAccount> findByProviderAndProviderUserId(SocialProvider provider, String providerUserId);
 
     List<SocialAccount> findByUser_Id(UUID userId);
+
+    /** 연동 해제 시 현재 사용자의 특정 제공자 연결을 찾는다. */
+    Optional<SocialAccount> findByUser_IdAndProvider(UUID userId, SocialProvider provider);
 }

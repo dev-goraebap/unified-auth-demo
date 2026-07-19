@@ -2,6 +2,7 @@ package com.example.demo.module.identity.application.auth.oauth;
 
 import com.example.demo.module.identity.application.auth.AuthenticatedUser;
 import com.example.demo.module.identity.application.auth.SocialAuthService;
+import com.example.demo.module.identity.application.auth.SocialCompleteResult;
 import com.example.demo.module.identity.application.auth.SocialLoginResult;
 import com.example.demo.module.identity.domain.social.SocialProvider;
 import com.example.demo.module.identity.domain.verification.Verification;
@@ -79,11 +80,43 @@ public class SocialOAuthService {
         return CallbackResult.verificationRequired(ticket);
     }
 
-    /** (비로그인) 티켓 + PASS 본인인증으로 DI를 확정해 소셜을 연결/가입한다. */
+    /**
+     * (비로그인) 티켓 + PASS 본인인증으로 DI를 판정한다. <b>이 단계에서는 연결·가입을 하지 않는다.</b>
+     * <ul>
+     *   <li>이미 본인에게 연결된 소셜 → {@code AUTHENTICATED}(로그인). 티켓 소비.</li>
+     *   <li>신규 → {@code SIGNUP_REQUIRED}. 티켓 유지({@link #signupWithSocial}에서 소비).</li>
+     *   <li>기존 회원 → {@code LINK_REQUIRED}(확인 필요). 티켓 유지({@link #confirmLink}에서 소비).</li>
+     * </ul>
+     */
     @Transactional
-    public AuthenticatedUser completeWithPass(String ticket, String reference) {
-        Ticket t = consumeTicket(ticket);
-        return socialAuthService.linkOrRegister(t.provider(), t.providerUserId(), reference).user();
+    public SocialCompleteResult completeWithPass(String ticket, String reference) {
+        Ticket t = peekTicket(ticket); // 판정 결과에 따라 소비 여부가 갈리므로 아직 삭제하지 않는다.
+        SocialCompleteResult result =
+                socialAuthService.completeWithPass(t.provider(), t.providerUserId(), reference);
+        if (result.status() == SocialCompleteResult.Status.AUTHENTICATED) {
+            deleteTicket(ticket); // 로그인 확정 → 1회용 티켓 소비. (그 외는 다음 단계에서 소비.)
+        }
+        return result;
+    }
+
+    /** (비로그인) 사용자 확인 후 기존 회원 계정에 소셜을 연결하고 로그인({@code LINK_REQUIRED} 확정). */
+    @Transactional
+    public AuthenticatedUser confirmLink(String ticket, String reference) {
+        Ticket t = consumeTicket(ticket); // 1회용 소비.
+        return socialAuthService.confirmLink(t.provider(), t.providerUserId(), reference);
+    }
+
+    /** (비로그인) 신규 소셜 회원가입 — 티켓의 소셜정보 + PASS + ID/PW로 계정을 만든다. */
+    @Transactional
+    public AuthenticatedUser signupWithSocial(String ticket, String reference, String loginId, String rawPassword) {
+        Ticket t = consumeTicket(ticket); // 1회용 소비.
+        return socialAuthService.registerWithSocial(t.provider(), t.providerUserId(), reference, loginId, rawPassword);
+    }
+
+    /** (로그인 상태) 현재 사용자의 소셜 연동 해제. */
+    @Transactional
+    public void unlink(UUID userId, SocialProvider provider) {
+        socialAuthService.unlink(userId, provider);
     }
 
     /** (로그인 상태) 티켓의 소셜을 현재 사용자에 연결한다(PASS 불필요). */
@@ -105,13 +138,34 @@ public class SocialOAuthService {
         verificationRepository.delete(saved); // 1회용
     }
 
+    /** 티켓을 읽기만 한다(삭제 안 함). 판정 후 소비 여부가 갈리는 흐름에서 사용. */
+    private Ticket peekTicket(String ticket) {
+        return toTicket(findValidTicket(ticket));
+    }
+
+    /** 티켓을 읽고 소비(삭제)한다. */
     private Ticket consumeTicket(String ticket) {
-        Verification saved = verificationRepository.findByReference(ticket)
+        Verification saved = findValidTicket(ticket);
+        Ticket t = toTicket(saved);
+        verificationRepository.delete(saved); // 1회용
+        return t;
+    }
+
+    /** 유효한(용도 일치·미만료) 티켓을 찾는다. 없으면 예외. */
+    private Verification findValidTicket(String ticket) {
+        return verificationRepository.findByReference(ticket)
                 .filter(v -> v.getPurpose() == VerificationPurpose.SOCIAL_LINK_TICKET)
                 .filter(v -> !v.isExpired(Instant.now()))
                 .orElseThrow(() -> new SocialOAuthException("유효하지 않은 연결 티켓입니다. 소셜 로그인을 다시 시도해 주세요."));
+    }
+
+    /** 티켓을 소비(삭제)한다 — 이미 없으면 조용히 넘어간다(멱등). */
+    private void deleteTicket(String ticket) {
+        verificationRepository.findByReference(ticket).ifPresent(verificationRepository::delete);
+    }
+
+    private Ticket toTicket(Verification saved) {
         Map<String, Object> payload = readJson(saved.getPayload());
-        verificationRepository.delete(saved); // 1회용
         return new Ticket(SocialProvider.valueOf((String) payload.get("provider")),
                 (String) payload.get("providerUserId"));
     }

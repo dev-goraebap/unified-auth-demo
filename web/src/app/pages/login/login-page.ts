@@ -24,6 +24,14 @@ const SOCIALS: { provider: SocialProvider; label: string; classes: string }[] = 
                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" />
         <input name="password" type="password" [(ngModel)]="password" placeholder="비밀번호"
                class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none" />
+        <div class="flex items-center justify-between">
+          <label class="flex items-center gap-2 text-sm text-gray-600 select-none">
+            <input name="rememberMe" type="checkbox" [(ngModel)]="rememberMe"
+                   class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
+            로그인 상태 유지
+          </label>
+          <a routerLink="/recover" class="text-sm text-gray-500 hover:text-indigo-600 hover:underline">아이디/비밀번호 찾기</a>
+        </div>
         @if (error()) {
           <p class="text-sm text-red-600">{{ error() }}</p>
         }
@@ -71,6 +79,7 @@ export class LoginPage {
 
   loginId = '';
   password = '';
+  rememberMe = false;
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
@@ -81,7 +90,7 @@ export class LoginPage {
     }
     this.loading.set(true);
     this.error.set(null);
-    this.authApi.login({ loginId: this.loginId, password: this.password }).subscribe({
+    this.authApi.login({ loginId: this.loginId, password: this.password, rememberMe: this.rememberMe }).subscribe({
       next: (auth) => this.onAuthenticated(auth),
       error: () => {
         this.loading.set(false);

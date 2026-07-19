@@ -78,19 +78,16 @@ class SignupServiceTest {
     }
 
     @Test
-    void 소셜로만_있던_사용자에_로컬계정을_붙인다_계정통합() {
-        // 먼저 소셜로 가입(같은 DI의 사용자 생성).
-        String name = "통합대상";
+    void 소셜로_가입한_사람은_같은_DI로_로컬가입을_또_할_수_없다() {
+        // 소셜 회원가입은 소셜정보 + ID/PW로 계정을 만든다(이미 로컬 자격증명 보유).
+        String name = "소셜가입자";
         LocalDate birth = LocalDate.of(1993, 6, 6);
-        socialAuthService.linkOrRegister(SocialProvider.KAKAO, "kakao-999",
-                mockProvider.startVerification(name, birth, Gender.M, "01000000000"));
+        socialAuthService.registerWithSocial(SocialProvider.KAKAO, "kakao-999",
+                reference(name, birth, Gender.M), "socialid", "password123");
 
-        long usersBefore = userRepository.count();
-
-        // 같은 사람이 로컬 가입 → 새 사용자 생성 없이 기존 사용자에 자격증명만 추가.
-        AuthenticatedUser user = signupService.signupLocal(reference(name, birth, Gender.M), "merge", "password123");
-
-        assertThat(userRepository.count()).isEqualTo(usersBefore); // 사용자 수 그대로
-        assertThat(localCredentialRepository.existsById(user.userId())).isTrue();
+        // 같은 사람(같은 DI)이 로컬로 또 가입 시도 → 이미 로컬 계정이 있으므로 거부.
+        assertThatThrownBy(() ->
+                signupService.signupLocal(reference(name, birth, Gender.M), "another", "password123"))
+                .isInstanceOf(LocalCredentialAlreadyExistsException.class);
     }
 }

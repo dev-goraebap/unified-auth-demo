@@ -42,26 +42,42 @@ public class SignupService {
     public AuthenticatedUser signupLocal(String reference, String loginId, String rawPassword) {
         // ① PASS(본인인증) 결과로 DI 확보 — 출처(Mock/실제)는 알지 못한다.
         VerificationResult verified = verificationProvider.verify(reference);
+        // ② 확정된 신원으로 사용자 + 로컬 자격증명 생성.
+        User user = registerLocalAccount(verified, loginId, rawPassword);
+        return new AuthenticatedUser(user.getId(), user.getName());
+    }
 
-        // ② DI 앵커로 사용자 확정: 없으면 신규 등록, 있으면 기존 사용자에 통합.
+    /**
+     * 확정된 신원(PASS 결과)으로 사용자와 로컬(ID/PW) 자격증명을 만든다. 로컬 가입과
+     * 소셜 회원가입이 공유하는 핵심 로직 — 소셜 회원가입도 "소셜정보 + ID/PW"이므로 여기서
+     * 계정을 만든 뒤 소셜 연결만 덧붙인다({@code SocialAuthService.registerWithSocial}).
+     * <p>
+     * DI가 앵커이므로 같은 사람(같은 DI)은 항상 같은 {@link User}에 묶인다. 다만 모든 계정은
+     * 반드시 ID/PW를 갖도록 바뀌었으므로, 기존 DI 사용자는 이미 로컬 계정이 있어 여기서 거부된다.
+     *
+     * @return 생성/확정된 사용자
+     */
+    @Transactional
+    public User registerLocalAccount(VerificationResult verified, String loginId, String rawPassword) {
+        // ① DI 앵커로 사용자 확정: 없으면 신규 등록.
         User user = userRepository.findByDi(verified.di())
                 .orElseGet(() -> userRepository.save(User.register(
                         verified.di(), verified.ci(), verified.name(),
                         verified.birthDate(), verified.gender(), verified.phone())));
 
-        // ③ 이미 로컬 계정이 있는 사용자면 가입 대신 로그인해야 한다.
+        // ② 이미 로컬 계정이 있는 사용자면 가입 대신 로그인해야 한다.
         if (localCredentialRepository.existsById(user.getId())) {
             throw new LocalCredentialAlreadyExistsException("이미 로컬 계정이 있는 사용자입니다. 로그인해 주세요.");
         }
-        // ④ 로그인 아이디 중복 확인.
+        // ③ 로그인 아이디 중복 확인.
         if (localCredentialRepository.existsByLoginId(loginId)) {
             throw new DuplicateLoginIdException("이미 사용 중인 아이디입니다.");
         }
 
-        // ⑤ 비밀번호는 애플리케이션에서 해시해 저장(도메인은 평문을 모른다).
+        // ④ 비밀번호는 애플리케이션에서 해시해 저장(도메인은 평문을 모른다).
         LocalCredential credential = LocalCredential.create(user, loginId, passwordEncoder.encode(rawPassword));
         localCredentialRepository.save(credential);
 
-        return new AuthenticatedUser(user.getId(), user.getName());
+        return user;
     }
 }

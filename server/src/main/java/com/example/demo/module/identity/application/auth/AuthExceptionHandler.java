@@ -65,6 +65,12 @@ public class AuthExceptionHandler {
         return build(HttpStatus.NOT_FOUND, "VERIFICATION_NOT_FOUND", e.getMessage());
     }
 
+    /** 계정 찾기/복구 시 해당 계정 없음 → 404 */
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleAccountNotFound(AccountNotFoundException e) {
+        return build(HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", e.getMessage());
+    }
+
     /** 요청 검증 실패 → 400 */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleBadRequest(IllegalArgumentException e) {

@@ -28,15 +28,18 @@ public class AuthController {
 
     private final SignupService signupService;
     private final LoginService loginService;
+    private final AccountRecoveryService accountRecoveryService;
     private final TokenService tokenService;
     private final AuthTokenResponder responder;
     private final BearerTokenAuthenticator authenticator;
 
     public AuthController(SignupService signupService, LoginService loginService,
+                          AccountRecoveryService accountRecoveryService,
                           TokenService tokenService, AuthTokenResponder responder,
                           BearerTokenAuthenticator authenticator) {
         this.signupService = signupService;
         this.loginService = loginService;
+        this.accountRecoveryService = accountRecoveryService;
         this.tokenService = tokenService;
         this.responder = responder;
         this.authenticator = authenticator;
@@ -51,12 +54,13 @@ public class AuthController {
         return responder.write(tokenService.issueFor(user, Instant.now()), response);
     }
 
-    /** 로컬 로그인. */
+    /** 로컬 로그인. rememberMe면 RFT 쿠키를 영속(브라우저 종료 후에도 유지)으로 굽는다. */
     @PostMapping("/login")
     public AuthResponse login(@RequestBody LoginRequest request, HttpServletResponse response) {
         request.validate();
         AuthenticatedUser user = loginService.loginLocal(request.loginId(), request.password());
-        return responder.write(tokenService.issueFor(user, Instant.now()), response);
+        boolean remember = Boolean.TRUE.equals(request.rememberMe()); // 누락(null) → false.
+        return responder.write(tokenService.issueFor(user, remember, Instant.now()), response);
     }
 
     /** Access Token 재발급 — RFT 쿠키를 회전한다. */
@@ -72,6 +76,20 @@ public class AuthController {
     public void logout(HttpServletRequest request, HttpServletResponse response) {
         responder.readRefreshToken(request).ifPresent(raw -> tokenService.logout(raw, Instant.now()));
         responder.clearRefreshCookie(response);
+    }
+
+    /** (비로그인) 아이디 찾기 — PASS 본인인증 후 로그인 아이디를 돌려준다. */
+    @PostMapping("/recover")
+    public RecoverIdResponse recoverId(@RequestBody RecoverIdRequest request) {
+        request.validate();
+        return new RecoverIdResponse(accountRecoveryService.findLoginId(request.reference()));
+    }
+
+    /** (비로그인) 비밀번호 재설정 — PASS 본인인증 후 새 비밀번호로 변경한다. */
+    @PostMapping("/reset-password")
+    public void resetPassword(@RequestBody ResetPasswordRequest request) {
+        request.validate();
+        accountRecoveryService.resetPassword(request.reference(), request.newPassword());
     }
 
     /** 현재 사용자 — Access Token 검증 데모(Authorization: Bearer). */
@@ -94,7 +112,8 @@ public class AuthController {
         }
     }
 
-    public record LoginRequest(String loginId, String password) {
+    /** @param rememberMe "로그인 상태 유지"(생략 가능, 기본 false). true면 RFT 쿠키를 영속으로 굽는다. */
+    public record LoginRequest(String loginId, String password, Boolean rememberMe) {
         void validate() {
             if (loginId == null || loginId.isBlank()) throw new IllegalArgumentException("loginId는 필수입니다");
             if (password == null || password.isBlank()) throw new IllegalArgumentException("password는 필수입니다");
@@ -102,5 +121,21 @@ public class AuthController {
     }
 
     public record MeResponse(UUID userId) {
+    }
+
+    public record RecoverIdRequest(String reference) {
+        void validate() {
+            if (reference == null || reference.isBlank()) throw new IllegalArgumentException("reference는 필수입니다");
+        }
+    }
+
+    public record RecoverIdResponse(String loginId) {
+    }
+
+    public record ResetPasswordRequest(String reference, String newPassword) {
+        void validate() {
+            if (reference == null || reference.isBlank()) throw new IllegalArgumentException("reference는 필수입니다");
+            if (newPassword == null || newPassword.length() < 8) throw new IllegalArgumentException("newPassword는 8자 이상이어야 합니다");
+        }
     }
 }

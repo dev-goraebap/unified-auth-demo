@@ -46,10 +46,28 @@ const ALL_SOCIALS: { provider: SocialProvider; label: string }[] = [
           <h2 class="mb-3 text-sm font-semibold text-gray-700">소셜 계정</h2>
           <ul class="space-y-2">
             @for (s of allSocials; track s.provider) {
-              <li class="flex items-center justify-between">
+              <li class="flex items-center justify-between gap-2">
                 <span class="text-sm text-gray-900">{{ s.label }}</span>
-                @if (isLinked(acc, s.provider)) {
-                  <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">연결됨</span>
+                @if (unlinkTarget() === s.provider) {
+                  <span class="flex items-center gap-2">
+                    <span class="text-xs text-gray-500">연동을 해제할까요?</span>
+                    <button type="button" (click)="confirmUnlink(s.provider)" [disabled]="loading()"
+                            class="rounded-lg bg-red-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50">
+                      해제
+                    </button>
+                    <button type="button" (click)="unlinkTarget.set(null)"
+                            class="rounded-lg border border-gray-300 px-2.5 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                      취소
+                    </button>
+                  </span>
+                } @else if (isLinked(acc, s.provider)) {
+                  <span class="flex items-center gap-2">
+                    <span class="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">연결됨</span>
+                    <button type="button" (click)="unlinkTarget.set(s.provider)" [disabled]="loading()"
+                            class="text-xs text-gray-400 hover:text-red-600 hover:underline disabled:opacity-50">
+                      해제
+                    </button>
+                  </span>
                 } @else {
                   <button type="button" (click)="linkSocial(s.provider)" [disabled]="loading()"
                           class="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-50">
@@ -76,6 +94,7 @@ export class AccountsPage {
   readonly accounts = signal<AccountsResponse | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+  readonly unlinkTarget = signal<SocialProvider | null>(null);
 
   constructor() {
     if (isPlatformBrowser(inject(PLATFORM_ID))) {
@@ -105,6 +124,23 @@ export class AccountsPage {
       error: () => {
         this.loading.set(false);
         this.error.set('소셜 연결을 시작하지 못했습니다.');
+      },
+    });
+  }
+
+  /** 소셜 연동 해제. 로컬(ID/PW) 계정은 항상 남으므로 안전. */
+  confirmUnlink(provider: SocialProvider): void {
+    this.loading.set(true);
+    this.error.set(null);
+    this.authApi.socialUnlink(provider).subscribe({
+      next: () => {
+        this.unlinkTarget.set(null);
+        this.loading.set(false);
+        this.load();
+      },
+      error: (err) => {
+        this.loading.set(false);
+        this.error.set(err?.error?.message ?? '연동 해제에 실패했습니다.');
       },
     });
   }

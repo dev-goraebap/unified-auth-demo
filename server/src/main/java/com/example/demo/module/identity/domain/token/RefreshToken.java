@@ -41,6 +41,11 @@ public class RefreshToken {
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 
+    /** "로그인 상태 유지" 여부. RFT 쿠키를 영속(true)으로 구울지 세션(false)으로 구울지 결정한다.
+     *  회전 시 이 값을 새 토큰에 승계해 쿠키 종류를 유지한다(ADR-0006). */
+    @Column(nullable = false)
+    private boolean remember;
+
     @Column(name = "revoked_at")
     private Instant revokedAt;
 
@@ -52,7 +57,7 @@ public class RefreshToken {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    private RefreshToken(User user, String tokenHash, Instant expiresAt) {
+    private RefreshToken(User user, String tokenHash, Instant expiresAt, boolean remember) {
         if (user == null) throw new IllegalArgumentException("user는 필수입니다");
         if (tokenHash == null || tokenHash.isBlank()) throw new IllegalArgumentException("tokenHash는 필수입니다");
         if (expiresAt == null) throw new IllegalArgumentException("expiresAt는 필수입니다");
@@ -60,10 +65,11 @@ public class RefreshToken {
         this.user = user;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
+        this.remember = remember;
     }
 
-    public static RefreshToken issue(User user, String tokenHash, Instant expiresAt) {
-        return new RefreshToken(user, tokenHash, expiresAt);
+    public static RefreshToken issue(User user, String tokenHash, Instant expiresAt, boolean remember) {
+        return new RefreshToken(user, tokenHash, expiresAt, remember);
     }
 
     /** 로그아웃 등으로 토큰을 폐기한다. */

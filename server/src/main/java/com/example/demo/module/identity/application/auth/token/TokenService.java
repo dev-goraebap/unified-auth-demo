@@ -21,18 +21,24 @@ public class TokenService {
         this.refreshTokenService = refreshTokenService;
     }
 
-    /** 로그인/가입 성공 → Access Token + 새 RFT를 발급한다. */
+    /** 로그인/가입 성공 → Access Token + 새 RFT를 발급한다(기본: 로그인 유지 ON). */
     public IssuedTokens issueFor(AuthenticatedUser user, Instant now) {
-        JwtProvider.IssuedJwt access = jwtProvider.issue(user.userId(), now);
-        String refresh = refreshTokenService.issue(user.userId(), now);
-        return new IssuedTokens(user, access.token(), access.expiresAt(), refresh);
+        return issueFor(user, true, now);
     }
 
-    /** RFT 회전 → 새 Access Token + 새 RFT. RFT가 유효하지 않으면 예외. */
+    /** 로그인/가입 성공 → Access Token + 새 RFT를 발급한다. {@code remember}로 쿠키 종류를 정한다. */
+    public IssuedTokens issueFor(AuthenticatedUser user, boolean remember, Instant now) {
+        JwtProvider.IssuedJwt access = jwtProvider.issue(user.userId(), now);
+        String refresh = refreshTokenService.issue(user.userId(), remember, now);
+        return new IssuedTokens(user, access.token(), access.expiresAt(), refresh, remember);
+    }
+
+    /** RFT 회전 → 새 Access Token + 새 RFT. 쿠키 종류(remember)는 이전 토큰에서 승계. */
     public IssuedTokens refresh(String rawRefreshToken, Instant now) {
         RefreshTokenService.Rotation rotation = refreshTokenService.rotate(rawRefreshToken, now);
         JwtProvider.IssuedJwt access = jwtProvider.issue(rotation.user().userId(), now);
-        return new IssuedTokens(rotation.user(), access.token(), access.expiresAt(), rotation.rawToken());
+        return new IssuedTokens(rotation.user(), access.token(), access.expiresAt(),
+                rotation.rawToken(), rotation.remember());
     }
 
     /** 로그아웃 → RFT 폐기. */

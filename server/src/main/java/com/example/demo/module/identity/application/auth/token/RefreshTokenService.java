@@ -42,9 +42,9 @@ public class RefreshTokenService {
 
     /** 새 RFT를 발급해 저장하고 <b>원문</b>을 돌려준다(원문은 여기서만 노출). */
     @Transactional
-    public String issue(UUID userId, Instant now) {
+    public String issue(UUID userId, boolean remember, Instant now) {
         User user = userRepository.getReferenceById(userId);
-        return issueFor(user, now).raw();
+        return issueFor(user, remember, now).raw();
     }
 
     /**
@@ -60,10 +60,11 @@ public class RefreshTokenService {
                 .orElseThrow(() -> new InvalidRefreshTokenException("유효하지 않은 refresh token입니다. 다시 로그인해 주세요."));
 
         User user = current.getUser();
-        Issued next = issueFor(user, now);
+        boolean remember = current.isRemember(); // 회전해도 쿠키 종류(영속/세션) 유지.
+        Issued next = issueFor(user, remember, now);
         current.rotateTo(next.entity().getId(), now);
 
-        return new Rotation(new AuthenticatedUser(user.getId(), user.getName()), next.raw());
+        return new Rotation(new AuthenticatedUser(user.getId(), user.getName()), next.raw(), remember);
     }
 
     /** 로그아웃 — 원문에 해당하는 토큰을 폐기한다. 없으면 조용히 무시(멱등). */
@@ -73,9 +74,9 @@ public class RefreshTokenService {
                 .ifPresent(token -> token.revoke(now));
     }
 
-    private Issued issueFor(User user, Instant now) {
+    private Issued issueFor(User user, boolean remember, Instant now) {
         String raw = newRawToken();
-        RefreshToken saved = refreshTokenRepository.save(RefreshToken.issue(user, hash(raw), now.plus(ttl)));
+        RefreshToken saved = refreshTokenRepository.save(RefreshToken.issue(user, hash(raw), now.plus(ttl), remember));
         return new Issued(saved, raw);
     }
 
@@ -100,6 +101,6 @@ public class RefreshTokenService {
         }
     }
 
-    public record Rotation(AuthenticatedUser user, String rawToken) {
+    public record Rotation(AuthenticatedUser user, String rawToken, boolean remember) {
     }
 }
