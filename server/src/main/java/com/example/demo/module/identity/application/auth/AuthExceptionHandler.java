@@ -1,5 +1,7 @@
 package com.example.demo.module.identity.application.auth;
 
+import com.example.demo.module.identity.application.auth.token.InvalidAccessTokenException;
+import com.example.demo.module.identity.application.auth.token.InvalidRefreshTokenException;
 import com.example.demo.module.identity.application.verification.VerificationNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,18 @@ public class AuthExceptionHandler {
     @ExceptionHandler(InvalidCredentialsException.class)
     public ResponseEntity<ErrorResponse> handleUnauthorized(InvalidCredentialsException e) {
         return build(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", e.getMessage());
+    }
+
+    /** Access Token 무효/만료 → 401 */
+    @ExceptionHandler(InvalidAccessTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAccessToken(InvalidAccessTokenException e) {
+        return build(HttpStatus.UNAUTHORIZED, "INVALID_ACCESS_TOKEN", e.getMessage());
+    }
+
+    /** Refresh Token 무효/만료 → 401 */
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRefreshToken(InvalidRefreshTokenException e) {
+        return build(HttpStatus.UNAUTHORIZED, "INVALID_REFRESH_TOKEN", e.getMessage());
     }
 
     /** 중복(아이디·로컬계정·소셜연결) → 409 */

@@ -1,44 +1,58 @@
 package com.example.demo.module.identity.application.auth;
 
+import com.example.demo.module.identity.application.auth.token.TokenService;
 import com.example.demo.module.identity.domain.social.SocialProvider;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.Instant;
 
 /**
  * 소셜(카카오·네이버·구글) 로그인/연결 엔드포인트.
  * <p>
  * 데모라 OAuth 대신 (provider, providerUserId)를 직접 받는다. 프론트 흐름:
  * <pre>
- * ① POST /login → 이미 연결됐으면 AUTHENTICATED, 아니면 VERIFICATION_REQUIRED
- * ② VERIFICATION_REQUIRED면 본인인증(PASS) 후 확인화면 → POST /link 로 연결/가입
+ * ① POST /login → 이미 연결됐으면 AUTHENTICATED(토큰 발급), 아니면 VERIFICATION_REQUIRED
+ * ② VERIFICATION_REQUIRED면 본인인증(PASS) 후 확인화면 → POST /link 로 연결/가입(토큰 발급)
  * </pre>
+ * 인증 성공 시 로컬과 동일하게 Access Token(바디)+RFT(쿠키)를 발급한다(ADR-0006).
  */
 @RestController
 @RequestMapping("/api/auth/social")
 public class SocialAuthController {
 
     private final SocialAuthService socialAuthService;
+    private final TokenService tokenService;
+    private final AuthTokenResponder responder;
 
-    public SocialAuthController(SocialAuthService socialAuthService) {
+    public SocialAuthController(SocialAuthService socialAuthService,
+                                TokenService tokenService, AuthTokenResponder responder) {
         this.socialAuthService = socialAuthService;
+        this.tokenService = tokenService;
+        this.responder = responder;
     }
 
     @PostMapping("/login")
-    public SocialLoginResponse login(@RequestBody SocialLoginRequest request) {
+    public SocialLoginResponse login(@RequestBody SocialLoginRequest request, HttpServletResponse response) {
         request.validate();
         SocialLoginResult result = socialAuthService.login(request.provider(), request.providerUserId());
-        AuthResponse user = result.user() == null ? null : AuthResponse.from(result.user());
-        return new SocialLoginResponse(result.status().name(), user);
+        if (result.status() != SocialLoginResult.Status.AUTHENTICATED) {
+            return new SocialLoginResponse(result.status().name(), null);
+        }
+        AuthResponse auth = responder.write(tokenService.issueFor(result.user(), Instant.now()), response);
+        return new SocialLoginResponse(result.status().name(), auth);
     }
 
     @PostMapping("/link")
-    public SocialLinkResponse link(@RequestBody SocialLinkRequest request) {
+    public SocialLinkResponse link(@RequestBody SocialLinkRequest request, HttpServletResponse response) {
         request.validate();
         SocialLinkResult result = socialAuthService.linkOrRegister(
                 request.provider(), request.providerUserId(), request.reference());
-        return new SocialLinkResponse(AuthResponse.from(result.user()), result.outcome().name());
+        AuthResponse auth = responder.write(tokenService.issueFor(result.user(), Instant.now()), response);
+        return new SocialLinkResponse(auth, result.outcome().name());
     }
 
     public record SocialLoginRequest(SocialProvider provider, String providerUserId) {
