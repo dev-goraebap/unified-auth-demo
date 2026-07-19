@@ -21,6 +21,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-jooq'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	// 스키마 마이그레이션은 Flyway 가 단일 소스로 관리한다. JPA(ddl-auto)는 validate 로 검증만. (ADR-0003)
+	// Spring Boot 4 부터 Flyway 오토컨피그는 spring-boot-flyway 전용 모듈로 분리됐다.
+	// flyway-core 만으로는 자동 실행이 안 되므로 이 모듈이 반드시 필요하다(flyway-core 는 전이 의존).
+	implementation 'org.springframework.boot:spring-boot-flyway'
+	implementation 'org.flywaydb:flyway-database-postgresql'
 	// BCrypt 비밀번호 해시 전용. security 스타터 전체(필터체인 자동활성화)는 아직 불필요.
 	implementation 'org.springframework.security:spring-security-crypto'
 	compileOnly 'org.projectlombok:lombok'
@@ -36,4 +41,17 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+// 개발 DB 데이터 초기화 — 데이터 5개 테이블만 truncate(스키마·Flyway 이력은 보존).
+// 접속 정보는 gradle 프로퍼티/환경변수로 덮어쓸 수 있다: -PdbContainer=... -PdbUser=... -PdbName=...
+tasks.register('dbReset', Exec) {
+	group = 'application'
+	description = '개발 DB 데이터 초기화(TRUNCATE). 스키마·Flyway 이력은 유지한다.'
+	def container = findProperty('dbContainer') ?: System.getenv('DB_CONTAINER') ?: 'postgres-local'
+	def dbUser    = findProperty('dbUser')      ?: System.getenv('DB_USER')      ?: 'postgres'
+	def dbName    = findProperty('dbName')      ?: System.getenv('DB_NAME')      ?: 'unified_auth'
+	commandLine 'docker', 'exec', container, 'psql', '-U', dbUser, '-d', dbName,
+		'-c', 'TRUNCATE TABLE users, local_credentials, social_accounts, refresh_tokens, verification RESTART IDENTITY CASCADE;'
+	doLast { println "✓ DB 데이터 초기화 완료 (${container}/${dbName}) — 스키마·Flyway 이력 유지" }
 }
